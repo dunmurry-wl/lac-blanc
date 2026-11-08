@@ -1,0 +1,50 @@
+name: Check Lac Blanc reservations
+
+on:
+  schedule:
+    # Every 30 minutes, away from the top-of-hour load spike. Times are UTC.
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_notification:
+        description: "Send a test ntfy notification instead of checking the website"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: write  # Needed to disable this workflow after sending the alert
+
+concurrency:
+  group: lac-blanc-reservations
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Check reservations or test notification
+        id: checker
+        env:
+          NTFY_TOPIC_URL: ${{ secrets.NTFY_TOPIC_URL }}
+          TEST_NOTIFICATION: ${{ inputs.test_notification }}
+        run: |
+          if [ "$TEST_NOTIFICATION" = "true" ]; then
+            python check_reservations.py --test-notification
+          else
+            python check_reservations.py
+          fi
+
+      - name: Disable monitoring after notifying
+        if: steps.checker.outputs.notification_sent == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow disable check-reservations.yml
