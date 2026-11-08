@@ -3,7 +3,7 @@ name: Check Lac Blanc reservations
 on:
   schedule:
     # Every 30 minutes, away from the top-of-hour load spike. Times are UTC.
-    - cron: "17,47 * * * *"
+    - cron: "02,32 * * * *"
   workflow_dispatch:
     inputs:
       test_notification:
